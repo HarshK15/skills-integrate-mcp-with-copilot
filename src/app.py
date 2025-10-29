@@ -130,3 +130,53 @@ def unregister_from_activity(activity_name: str, email: str):
     # Remove student
     activity["participants"].remove(email)
     return {"message": f"Unregistered {email} from {activity_name}"}
+
+
+# --- Minimal MCP-like endpoints (example provider) ---------------------------------
+def _read_file_text(path: Path) -> str:
+    try:
+        return path.read_text(encoding="utf-8")
+    except Exception as e:
+        return f"__ERROR_READING_FILE__: {e}"
+
+
+@app.get("/mcp/context")
+def mcp_context():
+    """Return a small set of project files as context for a model/context provider.
+
+    This is a simplified example of an MCP provider: it returns the contents of a
+    few repository files so a completion model (or Copilot extension) can use them
+    as context for suggestions. Extend or secure this endpoint as needed.
+    """
+    src_dir = Path(__file__).parent
+    repo_root = src_dir.parent
+
+    candidate_files = [
+        repo_root / "README.md",
+        src_dir / "README.md",
+        src_dir / "app.py",
+    ]
+
+    files = {}
+    for p in candidate_files:
+        if p.exists():
+            # store path relative to repository root for easier consumption
+            rel = str(p.relative_to(repo_root))
+            files[rel] = _read_file_text(p)
+
+    return {
+        "project": "skills-integrate-mcp-with-copilot",
+        "files": files,
+    }
+
+
+@app.get("/mcp/summary")
+def mcp_summary():
+    """Return a short machine-readable summary of the project for quick indexing."""
+    return {
+        "title": app.title,
+        "description": app.description,
+        "endpoints": ["/activities", "/mcp/context", "/mcp/summary"],
+    }
+
+# ----------------------------------------------------------------------------------
